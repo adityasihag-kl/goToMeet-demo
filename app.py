@@ -61,27 +61,29 @@ TEMPLATES = [
 st.markdown("""
 <style>
     .template-tile {
-        background-color: #f0f2f6;
+        background-color: #1E293B;
         border-radius: 10px;
         padding: 20px;
         margin-bottom: 10px;
         text-align: center;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        box-shadow: 0 4px 6px rgba(0,0,0,0.3);
         height: 100%;
+        color: #E2E8F0;
     }
     .company-name {
         font-weight: bold;
         font-size: 1.2em;
         margin-bottom: 5px;
-        color: #1E88E5;
+        color: #38BDF8;
     }
     .template-title {
         font-size: 1.1em;
         margin-bottom: 10px;
+        color: #F1F5F9;
     }
     .template-category {
-        background-color: #E3F2FD;
-        color: #1565C0;
+        background-color: #334155;
+        color: #7DD3FC;
         border-radius: 15px;
         padding: 3px 10px;
         font-size: 0.8em;
@@ -92,6 +94,15 @@ st.markdown("""
         margin-top: 10px;
     }
 </style>
+""", unsafe_allow_html=True)
+
+# Custom CSS to hide the Streamlit toolbar
+st.markdown("""
+    <style>
+        .stAppToolbar {
+            display: none;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
 # Initialize session state
