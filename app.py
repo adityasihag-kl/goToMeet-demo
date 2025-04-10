@@ -28,6 +28,43 @@ TEMPLATES = [
     }
 ]
 
+def format_service_response(service_response):
+    """Format a service response into a pretty HTML string"""
+    if (not service_response or 
+        service_response.get("error") or 
+        not service_response.get("response_parsed") or 
+        service_response.get("response_parsed", {}).get("impact_score", 0) < 7):
+        return None
+    
+    service_section = service_response.get("service_section", "Unknown Section")
+    service_name = service_response.get("service_name", "Unknown Service")
+    impact_score = service_response.get("response_parsed", {}).get("impact_score", "N/A")
+    summary = service_response.get("response_parsed", {}).get("summary_report", "No summary available")
+    details = service_response.get("response_parsed", {}).get("detailed_reasoning_report", "No details available")
+    
+    # Format impact score with stars
+    impact_stars = "⭐" * int(impact_score) if isinstance(impact_score, (int, float)) else ""
+    
+    html = f"""
+    <div style="margin-bottom: 20px; padding: 15px; border-radius: 10px; background-color: #1E293B; color: #E2E8F0;">
+        <h3 style="color: #38BDF8; margin-top: 0;">{service_section}: {service_name}</h3>
+        <div style="margin-bottom: 10px;">
+            <span style="font-weight: bold; color: #7DD3FC;">Impact Score:</span> {impact_score} {impact_stars}
+        </div>
+        <div style="margin-bottom: 15px;">
+            <span style="font-weight: bold; color: #7DD3FC;">Summary:</span>
+            <p>{summary}</p>
+        </div>
+        <details>
+            <summary style="cursor: pointer; color: #7DD3FC; font-weight: bold;">Detailed Analysis</summary>
+            <div style="margin-top: 10px; padding: 10px; background-color: #334155; border-radius: 5px;">
+                {details}
+            </div>
+        </details>
+    </div>
+    """
+    return html
+
 def main():
     """Main application function"""
     # Configure Streamlit page settings
@@ -122,14 +159,60 @@ def main():
         if not st.session_state.initial_research_done:
             with st.spinner("Generating company research report..."):
                 # Process the template and add initial message
-                response_text, _ = researcher.process_template(template_json=st.session_state.selected_company)
-                st.session_state.messages.append({"role": "assistant", "content": response_text})
+                report_results_response, service_responses = researcher.process_template(company_details=st.session_state.selected_company)
+                
+                # Create a formatted message for chat history
+                company_name = st.session_state.selected_company.get('company_name', 'Unknown')
+                
+                # Start with the main report
+                if report_results_response:
+                    main_report = f"## Research Report: {company_name}\n\n{report_results_response}\n\n"
+                else:
+                    main_report = f"## Research Report: {company_name}\n\nNo general report available.\n\n"
+                
+                # Add section for high-impact recommendations
+                main_report += "### Key Opportunities\n\n"
+                
+                # Add to message history
+                st.session_state.messages.append({"role": "assistant", "content": main_report})
+                
+                # Store service responses in session state for display
+                st.session_state.service_responses = service_responses
                 st.session_state.initial_research_done = True
         
         # Chat history
         for message in st.session_state.messages:
             with st.chat_message(message["role"]):
-                st.markdown(message["content"])
+                st.markdown(message["content"], unsafe_allow_html=True)
+        
+        # Display service recommendations after the first message
+        if st.session_state.initial_research_done and hasattr(st.session_state, 'service_responses'):
+            service_responses = st.session_state.service_responses
+            
+            # Filter for high-impact services
+            high_impact_services = []
+            for service in service_responses:
+                if (service and 
+                    not service.get("error") and 
+                    service.get("response_parsed") and 
+                    service.get("response_parsed", {}).get("impact_score", 0) >= 7):
+                    high_impact_services.append(service)
+            
+            # Display recommendations in expanders
+            if high_impact_services:
+                for i, service in enumerate(high_impact_services):
+                    service_section = service.get("service_section", "Unknown Section")
+                    service_name = service.get("service_name", "Unknown Service")
+                    impact_score = service.get("response_parsed", {}).get("impact_score", "N/A")
+                    summary = service.get("response_parsed", {}).get("summary_report", "No summary available")
+                    details = service.get("response_parsed", {}).get("detailed_reasoning_report", "No details available")
+                    
+                    with st.expander(f"{service_section}: {service_name} (Impact: {impact_score})", expanded=(i==0)):
+                        st.markdown(f"**Summary:** {summary}")
+                        st.markdown("**Detailed Analysis:**")
+                        st.markdown(details)
+            else:
+                st.info("No high-impact opportunities (impact score ≥ 7) were identified. Please ask a specific question to learn more.")
         
         # Chat input - only show if company is selected
         if prompt := st.chat_input("Type your message here..."):
@@ -142,19 +225,21 @@ def main():
             
             # Process response - for all subsequent messages, use the message parameter
             with st.spinner("Generating response..."):
-                response_text, _ = researcher.process_template(message=prompt)
+                response_text = researcher.process_template(message = prompt)
                 
-                # Add assistant response to chat history
+                # For chat responses, just use the text directly
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
                 
                 # Display assistant response
                 with st.chat_message("assistant"):
-                    st.markdown(response_text)
+                    st.markdown(response_text, unsafe_allow_html=True)
         
         # Reset button in sidebar
         if st.sidebar.button("Reset Chat"):
             st.session_state.messages = []
             st.session_state.initial_research_done = False
+            if hasattr(st.session_state, 'service_responses'):
+                delattr(st.session_state, 'service_responses')
             st.rerun()
 
 if __name__ == "__main__":
