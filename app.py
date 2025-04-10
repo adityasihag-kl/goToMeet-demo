@@ -123,6 +123,8 @@ def main():
         st.session_state.selected_company = selected_template
         st.session_state.company_selected = True
         st.session_state.initial_research_done = False
+        st.session_state.researcher = deepReseacher()
+        researcher = st.session_state.researcher
         st.rerun()
     
     # If company is selected, show company details in sidebar
@@ -225,7 +227,7 @@ def main():
             
             # Process response - for all subsequent messages, use the message parameter
             with st.spinner("Generating response..."):
-                response_text = researcher.process_template(message = prompt)
+                response_text = researcher.process_template(message=prompt)
                 
                 # For chat responses, just use the text directly
                 st.session_state.messages.append({"role": "assistant", "content": response_text})
