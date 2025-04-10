@@ -4,13 +4,14 @@ import concurrent.futures
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
+from datetime import datetime
 
 load_dotenv()
 
 
 class deepReseacher:
     def __init__(self):
-        self.analysis_grounding_prompt = """"You are given a company's details.
+        self.analysis_grounding_prompt = f""""You are given a company's details.
 Your task is to search for recent news articles regarding the client that cover topics such as mergers, acquisitions, lawsuits, and product launches.
 Also, identify industry-specific updates, including changes in tax laws and regulatory shifts, that may impact the client or their industry.
 Focus on collecting a comprehensive set of articles related to the client's recent activities and industry changes.
@@ -19,6 +20,7 @@ The research and final detailed report should be such as if created by a top-tie
 MY CONSULTANCY FIRM NAME:- KNAV CPA
 
 (ALL SEARCH ARTICLES SHOULD NOT BE MORE THAN 12 MONTHS OLD)
+TODAY'S DATE - {datetime.today().strftime("%-d %B %Y")}
 
 1. Filter results to ensure they are recent and credible.
 2. Classify findings into categories: client-related news (e.g., mergers, acquisitions, lawsuits, product launches) and industry-specific updates (e.g., tax law changes, regulatory shifts).
@@ -575,7 +577,7 @@ Use the tags shown below to give the summary_report.
             self.first_query = self.analysis_grounding_prompt + json.dumps(company_details, indent = 4)
             self.first_reply = report_results_response + "\n\nRecommended Services:\n"
             for recom in recommendations:
-                if recom["response_parsed"] != None and recom["response_parsed"]["impact_score"] >= 7:
+                if recom["response_parsed"] != None and recom["response_parsed"]["impact_score"] > 7:
                     self.first_reply += "\n<recommmended_service>"
                     self.first_reply += f"\nService Section:- {recom['service_section']}"
                     self.first_reply += f"\nService Name:- {recom['service_name']}"

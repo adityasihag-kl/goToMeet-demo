@@ -33,7 +33,7 @@ def format_service_response(service_response):
     if (not service_response or 
         service_response.get("error") or 
         not service_response.get("response_parsed") or 
-        service_response.get("response_parsed", {}).get("impact_score", 0) < 7):
+        service_response.get("response_parsed", {}).get("impact_score", 0) <= 7):
         return None
     
     service_section = service_response.get("service_section", "Unknown Section")
@@ -197,7 +197,7 @@ def main():
                 if (service and 
                     not service.get("error") and 
                     service.get("response_parsed") and 
-                    service.get("response_parsed", {}).get("impact_score", 0) >= 7):
+                    service.get("response_parsed", {}).get("impact_score", 0) > 7):
                     high_impact_services.append(service)
             
             # Display recommendations in expanders
@@ -214,7 +214,7 @@ def main():
                         st.markdown("**Detailed Analysis:**")
                         st.markdown(details)
             else:
-                st.info("No high-impact opportunities (impact score ≥ 7) were identified. Please ask a specific question to learn more.")
+                st.info("No high-impact opportunities (impact score > 7) were identified. Please ask a specific question to learn more.")
         
         # Chat input - only show if company is selected
         if prompt := st.chat_input("Type your message here..."):
