@@ -25,6 +25,16 @@ TEMPLATES = [
         "number_of_employees": None,
         "website": None,
         "year_of_incorporation": 1994
+    },
+    {
+        "company_name": "Capital Confirmation Inc.",
+        "country": "United States of America",
+        "headquarters": "Nashville, Tennessee",
+        "industry_sector": "Fintech",
+        "key_locations": [],
+        "number_of_employees": None,
+        "website": "www.confirmation.com",
+        "year_of_incorporation": 2000
     }
 ]
 
