@@ -16,7 +16,7 @@ Your task is to search for recent news articles regarding the client that cover 
 Also, identify industry-specific updates, including changes in tax laws and regulatory shifts, that may impact the client or their industry.
 Focus on collecting a comprehensive set of articles related to the client's recent activities and industry changes.
 
-The research and final detailed report should be such as if created by a top-tier consultancy firm specializing in corporate intelligence and market analysis.
+The research and final detailed report should be such as if created by a top-tier CPA firm specializing in corporate intelligence, market analysis and financial expertise.
 MY CONSULTANCY FIRM NAME:- KNAV CPA
 
 (ALL SEARCH ARTICLES SHOULD NOT BE MORE THAN 12 MONTHS OLD)
