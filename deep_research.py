@@ -119,8 +119,6 @@ Use the tags shown below to give the summary_report.
             api_key = os.getenv("GEMINI_API_KEY"),
         )
 
-        # self.model_name = "gemini-2.0-flash"
-        self.model_name = "gemini-2.5-pro-preview-03-25"
         self.generation_config = {
             "temperature": 1.0,
             "top_p": 0.95,
@@ -557,7 +555,7 @@ Use the tags shown below to give the summary_report.
             self.first_query = None
             self.first_reply = None
 
-            report_results = self.generate_grounding_report(company_details, self.model_name)
+            report_results = self.generate_grounding_report(company_details, "gemini-2.5-pro-preview-03-25")
 
             print("Generated analysis report!")
 
@@ -566,7 +564,7 @@ Use the tags shown below to give the summary_report.
 
             report_results_response = report_results["response"]
             services_data, services_data_json = self.get_services_offered_data("services_usa.json")
-            recommendations = self.process_COATT_parallel(report_results_response, services_data, self.model_name)
+            recommendations = self.process_COATT_parallel(report_results_response, services_data, "gemini-2.0-flash")
 
             total_cost += sum([dp["total_cost"] for dp in recommendations])
             print("Running Cost:- $", total_cost)
@@ -608,7 +606,7 @@ Use the tags shown below to give the summary_report.
                     ]
                 )
                     
-            response = self.generate_standard_response(message, self.model_name)
+            response = self.generate_standard_response(message, "gemini-2.0-flash")
 
             total_cost += response["total_cost"]
             print("Running Cost:- $", total_cost)
