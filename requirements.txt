@@ -1,4 +1,4 @@
 streamlit
-google-genai==0.3
+google-genai
 tqdm
 python-dotenv
