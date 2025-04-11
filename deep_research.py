@@ -117,6 +117,83 @@ Use the tags shown below to give the summary_report.
 
 """
 
+        self.generate_gotomeet_prompt = """You are given a companies research, done by a CPA consultancy company,
+You must curate a perfect Go-To Meet document, using all the given information.
+
+The structure for the document is given to you, you must follow the structure, but fill in the internal data acoordiong to the company data.
+
+---
+
+### Go to Meet Prep One-Pager Structure
+**Client Name**: [e.g., Acme Corp]  
+**Date**: [e.g., April 07, 2025]  
+*(Big, bold, up top—grounds it instantly.)*
+
+---
+
+#### 1. Snapshot  
+*(3-5 punchy bullets—quick overview to set the stage.)*  
+- Fresh merger with XYZ Inc.—expansion’s on.  
+- Revenue up 10%, but margins slipping 5%.  
+- New factory’s live—sustainability’s trending.  
+- Tax dispute simmering—could get messy.  
+*(Short, sharp, conversational—like a heads-up from a buddy.)*
+
+#### 2. Deep Dive  
+*(Key updates and insights—meaty but scannable, feeds into pain/opportunity.)*  
+- **Merger Move**: Snagged XYZ Inc.—production’s scaling, but integration’s a beast. [Reuters]  
+- **Financial Pulse**: $500M revenue (up 10%), margins down 5%—cost creep’s real. [Yahoo Finance]  
+- **Factory Flex**: New plant’s eco-friendly—customers dig it, regs might too. [Company Site]  
+- **Tax Hiccup**: Minor dispute with IRS—could signal bigger compliance gaps. [Bloomberg]  
+*(2-3 lines each, casual tone, sourced—enough detail to build the case.)*
+
+#### 3. Pain Points  
+*(Where the client’s hurting—specific, CPA-relevant, with a hook.)*  
+- **Integration Chaos**: Merging XYZ means messy books—cross-border pricing’s a nightmare.  
+- **Margin Squeeze**: Costs outpacing revenue—nobody’s watching the cash flow close enough.  
+- **Tax Risk**: That IRS dust-up hints at shaky compliance—penalties could stack up.  
+*(Direct, problem-focused—sets up the sell.)*
+
+#### 4. Opportunities  
+*(Where the client can win—tied to their goals, with a nudge.)*  
+- **Green Gains**: Factory’s sustainability angle could unlock tax credits—big savings.  
+- **Merger Upside**: XYZ deal could optimize supply chain—needs sharp financial strategy.  
+- **Growth Edge**: Revenue’s climbing—time to lock in profits with better planning.  
+*(Positive, forward-looking—shows the potential.)*
+
+#### 5. Our Play  
+*(Recommended Services to fix pains or seize opportunities—actionable, tied to the firm. Use the given information for this)*  
+- **Transfer Pricing Fix**: Sort out XYZ merger pricing—keep it compliant, cut tax headaches.  
+- **CFO Advisory Boost**: Dig into margins, build a cash flow plan—stop the bleed.  
+- **Tax Strategy Slam**: Audit-proof their setup, dodge IRS traps—save them millions.  
+- **Sustainability Credits**: Chase eco-tax breaks for the factory—turn green into gold.  
+*(Straight-up pitches—links pain/opportunity to what the firm offers.)*
+
+#### 6. Talking Points  
+*(3-5 convo starters—tee up the services naturally.)*  
+- “That XYZ merger—how’s pricing across borders going? We can streamline it.”  
+- “Margins are tight—want us to run a cash flow deep dive?”  
+- “Factory’s eco-friendly—let’s grab some tax credits for that.”  
+- “Tax dispute’s a red flag—our compliance check could shut it down.”  
+*(Casual, client-facing—plants the seed without sounding salesy.)*
+
+---
+
+### Design Vibes
+- **Layout**: One page, portrait, six sections with bold headings—clean breaks between each.  
+- **Font**: Sans-serif like Helvetica or Roboto—11pt, easy on the eyes.  
+- **Spacing**: Plenty of breathing room—don’t jam it up.  
+- **Bullets**: Simple dashes (-) or arrows (→) for lists—draws the eye.  
+- **Highlighting**: Bold pain points (e.g., **Margin Squeeze**) and service names (e.g., **CFO Advisory**) for pop.  
+- **Tone**: Straight-talking but approachable—like a trusted advisor, not a corporate drone.  
+- **PDF Ready**: Printable, mobile-optimized—ready to roll anywhere.
+
+---
+
+
+ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES> TO THE TEXT STREAM. SO THIS TOKEN WOULD BE THE LAST TOKEN OF YOUR GENERATION.
+"""
+        
         self.client = genai.Client(
             api_key = os.getenv("GEMINI_API_KEY"),
         )
@@ -473,7 +550,7 @@ Use the tags shown below to give the summary_report.
                 responses.append(report_response.text)
                 continue_loop_limit -= 1
 
-            responses = " ".join(responses)
+            responses = " ".join(responses).replace("<CHARLIEWAFFLES>", "")
             results["response"] = responses
             results["total_cost"] = total_cost
         except Exception as e:
@@ -550,6 +627,105 @@ Use the tags shown below to give the summary_report.
         # Return results, even if some steps failed
         return results
     
+    def generate_gotomeet_document(self, document, model_name = "gemini-2.0-flash"):
+        total_cost = 0
+        start_time = time.time()
+
+        # Initialize results dictionary to capture partial results
+        results = {
+            "status_code": 999,
+            "total_cost": 0,
+            "time_taken": None,
+            "response": None,
+            "response_parsed": None,
+            "error": None,
+        }
+
+        # Step 1: Get available API key
+        try:
+            api_key = os.getenv("GEMINI_API_KEY")
+            if api_key == None:
+                raise Exception("All APIs are busy, try again in some time.")
+            # results["get_API_key"] = True
+        except Exception as e:
+            results["error"] = f"Fetching API key failed: {str(e)}"
+            results["status_code"] = 401
+            return results
+
+        # Step 2: Initialize client
+        try:
+            client = genai.Client(api_key = api_key)
+            # results["client_initialize"] = True
+        except Exception as e:
+            results["error"] = f"Client initialization failed: {str(e)}"
+            results["status_code"] = 402
+            return results
+
+        # Step 4: Initialize chat
+        try:
+            chat = client.chats.create(
+                model = model_name,
+                config = types.GenerateContentConfig(
+                    temperature = self.generation_config["temperature"],
+                    top_p = self.generation_config["top_p"],
+                    top_k = self.generation_config["top_k"],
+                    seed = self.generation_config["seed"],
+                    max_output_tokens = self.generation_config["max_output_tokens"],
+                    response_modalities = self.generation_config["response_modalities"],
+                )
+            )
+            # results["chat_initialization"] = True
+        except Exception as e:
+            results["error"] = f"Chat initialization failed: {str(e)}"
+            results["status_code"] = 404
+            return results
+
+        # Step 5: Get Gemini response
+        try:
+            responses = []
+            generate_gotomeet_doc_response = chat.send_message([
+                self.generate_gotomeet_prompt + document
+            ])
+
+            total_cost += self.calculate_cost(
+                generate_gotomeet_doc_response.usage_metadata.prompt_token_count,
+                generate_gotomeet_doc_response.usage_metadata.candidates_token_count,
+                model_name
+            )
+
+            responses.append(generate_gotomeet_doc_response.text)
+
+            # Handle continuation if "<CHARLIEWAFFLES>" not found
+            continue_loop_limit = 2
+            while "<CHARLIEWAFFLES>" not in responses[-1] and continue_loop_limit > 0:
+                generate_gotomeet_doc_response = chat.send_message(["""Continue exactly from where you left off."""])
+                total_cost += self.calculate_cost(
+                    generate_gotomeet_doc_response.usage_metadata.prompt_token_count,
+                    generate_gotomeet_doc_response.usage_metadata.candidates_token_count,
+                    model_name
+                )
+                responses.append(generate_gotomeet_doc_response.text)
+                continue_loop_limit -= 1
+
+            responses = " ".join(responses).replace("<CHARLIEWAFFLES>", "")
+            results["response"] = responses
+            results["total_cost"] = total_cost
+        except Exception as e:
+            results["error"] = f"Response generation failed: {str(e)}"
+            results["status_code"] = 405
+            
+        del client
+
+        # Finalize time taken
+        end_time = time.time()
+        results["time_taken"] = end_time - start_time
+
+        # All steps executed gracefully
+        results["status_code"] = 200 if results["error"] == None else results["status_code"]
+
+        # Return results, even if some steps failed
+        return results
+    
     def process_template(self, company_details = None, message = None):
         total_cost = 0
 
@@ -557,7 +733,8 @@ Use the tags shown below to give the summary_report.
             self.first_query = None
             self.first_reply = None
 
-            report_results = self.generate_grounding_report(company_details, "gemini-2.5-pro-preview-03-25")
+            # report_results = self.generate_grounding_report(company_details, "gemini-2.5-pro-preview-03-25")
+            report_results = self.generate_grounding_report(company_details, "gemini-2.0-flash")
 
             print("Generated analysis report!")
 
@@ -574,7 +751,7 @@ Use the tags shown below to give the summary_report.
             for i in range(len(recommendations)):
                 recommendations[i]["service_section"], recommendations[i]["service_name"] = services_data_json[i]["section"], services_data_json[i]["name"]
 
-            self.first_query = self.analysis_grounding_prompt + json.dumps(company_details, indent = 4)
+            self.first_query = self.analysis_grounding_prompt + "\n\n" + json.dumps(company_details, indent = 4) + "\n\n" + self.generate_gotomeet_prompt
             self.first_reply = report_results_response + "\n\nRecommended Services:\n"
             for recom in recommendations:
                 if recom["response_parsed"] != None and recom["response_parsed"]["impact_score"] > 7:
@@ -586,7 +763,15 @@ Use the tags shown below to give the summary_report.
                     self.first_reply += f"\nDetailed Report:- {recom['response_parsed']['detailed_reasoning_report']}"
                     self.first_reply += "\n</recommmended_service>\n"
 
-            return report_results_response, recommendations
+            gotomeet_results = self.generate_gotomeet_document(self.first_reply + "\n\n" + json.dumps(company_details, indent = 4), "gemini-2.0-flash")
+            total_cost += gotomeet_results["total_cost"]
+            print("Running Cost:- $", total_cost)
+
+            gotomeet_document = gotomeet_results["response"]
+
+            self.first_reply += "\n\n" + gotomeet_document
+
+            return report_results_response, recommendations, gotomeet_document
         else:
             if self.chat == None:
                 self.chat = self.client.chats.create(
@@ -614,3 +799,24 @@ Use the tags shown below to give the summary_report.
             print("Running Cost:- $", total_cost)
 
             return response["response"]
+
+
+if __name__ == "__main__":
+    company_details = {
+        "company_name": "Pidilite USA, Inc.",
+        "country": "United States of America",
+        "headquarters": None,
+        "industry_sector": "Manufacturing of art supplies/chemicals",
+        "key_locations": [
+            "Hazleton, Pennsylvania (Sargent Art division)",
+        ],
+        "number_of_employees": 0,
+        "website": None,
+        "year_of_incorporation": 2006
+    }
+
+    deep_researcher = deepReseacher()
+
+    data = deep_researcher.process_template(company_details = company_details)
+
+    print("debug")

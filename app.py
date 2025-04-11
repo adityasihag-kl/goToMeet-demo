@@ -130,11 +130,19 @@ def main():
     
     # Button to confirm selection
     if st.sidebar.button("Confirm Selection"):
-        st.session_state.selected_company = selected_template
+        # Complete session state reset
+        for key in list(st.session_state.keys()):
+            if key != "company_dropdown":  # Keep the dropdown selection
+                del st.session_state[key]
+        
+        # Initialize necessary states
+        st.session_state.messages = []
         st.session_state.company_selected = True
+        st.session_state.selected_company = selected_template
         st.session_state.initial_research_done = False
         st.session_state.researcher = deepReseacher()
-        researcher = st.session_state.researcher
+        
+        # Force UI refresh
         st.rerun()
     
     # If company is selected, show company details in sidebar
@@ -171,7 +179,7 @@ def main():
         if not st.session_state.initial_research_done:
             with st.spinner("Generating company research report..."):
                 # Process the template and add initial message
-                report_results_response, service_responses = researcher.process_template(company_details=st.session_state.selected_company)
+                report_results_response, service_responses, gotomeet_document = researcher.process_template(company_details=st.session_state.selected_company)
                 
                 # Create a formatted message for chat history
                 company_name = st.session_state.selected_company.get('company_name', 'Unknown')
@@ -190,6 +198,7 @@ def main():
                 
                 # Store service responses in session state for display
                 st.session_state.service_responses = service_responses
+                st.session_state.gotomeet_document = gotomeet_document
                 st.session_state.initial_research_done = True
         
         # Chat history
@@ -198,7 +207,7 @@ def main():
                 st.markdown(message["content"], unsafe_allow_html=True)
         
         # Display service recommendations after the first message
-        if st.session_state.initial_research_done and hasattr(st.session_state, 'service_responses'):
+        if st.session_state.initial_research_done and hasattr(st.session_state, 'service_responses') and st.session_state.service_responses:
             service_responses = st.session_state.service_responses
             
             # Filter for high-impact services
@@ -210,8 +219,8 @@ def main():
                     service.get("response_parsed", {}).get("impact_score", 0) > 7):
                     high_impact_services.append(service)
             
-            # Display recommendations in expanders
-            if high_impact_services:
+            # Only display if there are high-impact services and company is selected
+            if high_impact_services and st.session_state.company_selected:
                 for i, service in enumerate(high_impact_services):
                     service_section = service.get("service_section", "Unknown Section")
                     service_name = service.get("service_name", "Unknown Service")
@@ -225,6 +234,11 @@ def main():
                         st.markdown(details)
             else:
                 st.info("No high-impact opportunities (impact score > 7) were identified. Please ask a specific question to learn more.")
+                
+            # Display the gotomeet_document if available
+            if hasattr(st.session_state, 'gotomeet_document') and st.session_state.gotomeet_document:
+                st.markdown("---")
+                st.markdown(st.session_state.gotomeet_document)
         
         # Chat input - only show if company is selected
         if prompt := st.chat_input("Type your message here..."):
@@ -248,10 +262,19 @@ def main():
         
         # Reset button in sidebar
         if st.sidebar.button("Reset Chat"):
+            # Complete session state reset
+            for key in list(st.session_state.keys()):
+                if key != "company_dropdown":  # Keep the dropdown selection
+                    del st.session_state[key]
+            
+            # Reinitialize necessary states
             st.session_state.messages = []
+            st.session_state.company_selected = False
+            st.session_state.selected_company = None
             st.session_state.initial_research_done = False
-            if hasattr(st.session_state, 'service_responses'):
-                delattr(st.session_state, 'service_responses')
+            st.session_state.researcher = deepReseacher()
+            
+            # Force UI refresh
             st.rerun()
 
 if __name__ == "__main__":
