@@ -830,6 +830,8 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
     def process_template(self, company_details = None, document_path = None, message = None):
         total_cost = 0
 
+        print("process_template, document_path -", document_path)
+
         if company_details:
             self.first_query = None
             self.first_reply = None
