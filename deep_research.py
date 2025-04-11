@@ -844,7 +844,7 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
 
             report_results_response = report_results["response"]
             services_data, services_data_json = self.get_services_offered_data("services_usa.json")
-            recommendations = self.process_COATT_parallel(report_results_response, document_path, services_data, "gemini-2.0-flash")
+            recommendations = self.process_COATT_parallel("<research_intelligence_report>\n" + report_results_response + "\n<\research_intelligence_report>", document_path, services_data, "gemini-2.0-flash")
 
             total_cost += sum([dp["total_cost"] for dp in recommendations])
             print("Running Cost:- $", total_cost)
