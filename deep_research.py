@@ -49,6 +49,48 @@ ONLY AND ONLY AFTER FULL REPORT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES> 
 
 COMPANY DETAILS:-
 """
+        
+        self.analysis_grounding_with_document_prompt = f""""You are given a company's details.
+Your task is to search for recent news articles regarding the client that cover topics such as mergers, acquisitions, lawsuits, and product launches.
+Also, identify industry-specific updates, including changes in tax laws and regulatory shifts, that may impact the client or their industry.
+Focus on collecting a comprehensive set of articles related to the client's recent activities and industry changes.
+
+You will also be given a confidential internal company's financial document.
+YOU MUST LEVERAGE INFORMATION FROM THE COMPANY DOCUMENT (WHICH IS CONFIDENTIAL, AND NOT PUBLIC) AS WELL, TO DO RELAVANT SEARCHES AND FETCH RELEVANT RESULTS, AND FORM YOUR REPORT.
+
+The research and final detailed report should be such as if created by a top-tier CPA firm specializing in corporate intelligence, market analysis and financial expertise.
+MY CONSULTANCY FIRM NAME:- KNAV CPA
+
+(ALL SEARCH ARTICLES SHOULD NOT BE MORE THAN 12 MONTHS OLD)
+TODAY'S DATE - {datetime.today().strftime("%-d %B %Y")}
+
+1. Filter results to ensure they are recent and credible.
+2. Classify findings into categories: client-related news (e.g., mergers, acquisitions, lawsuits, product launches) and industry-specific updates (e.g., tax law changes, regulatory shifts).
+
+FOLLOW the given structure for your report generation:-
+# Summarization
+    - Condense long articles, reports, or posts into detailed, informative summaries (e.g., 8-10 sentences).
+    - Example: "Acme Corp announced a merger with XYZ Inc. last week, expected to boost market share by 15%."
+# Key Point Extraction
+    - Pull out critical facts or figures (e.g., "Revenue up 10%," "New CEO appointed").
+    - For financial data, calculate trends (e.g., "Profit margins down 5% from last quarter").
+# Sentiment Analysis
+    - Gauge public or social media perception (e.g., "Positive sentiment around Acme's new product launch").
+# News Insights
+    - Acme Corp launched a new product—ask about its impact on revenue forecasts.
+# Financial Insights
+    - Profit margins declined—discuss cost-cutting strategies.
+
+
+MAKE SURE ALL SECTIONS / SUBSECTIONS ARE DOCUMENTED IN A DETAILED AN INFORMATIVE MANNER.
+YOU CAN ADD MORE SECTIONS / SUBSECTIONS TO THIS STRUCTURE, IF REPORT IS MISSING ESSENTIAL PARTS FOR A DETAILED AND COMPLETE REPORT.
+MAKE SURE YOUR REPORT IS COMPLETE, HIGHLY DETAILED AND INFORMATIVE, AND ATLEAST 10000 WORDS.
+ONLY AND ONLY AFTER FULL REPORT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES> TO THE TEXT STREAM. SO THIS TOKEN WOULD BE THE LAST TOKEN OF YOUR GENERATION.
+
+([In real use, include a longer and more specific textual content reflecting actual recent news based on the client and industry context.])
+
+COMPANY DETAILS:-
+"""
 
         self.DS_SYSTEM_CONTEMPLATION_PROMPT = """You are an assistant that engages in extremely thorough, self-questioning financial analysis, mirroring how an expert Certified Public Accountant / Chartered Accountant would think. Your approach should reflect a continuous exploration and iterative reasoning process, ensuring no detail is overlooked, and every possible angle is explored before arriving at a recommendation for a financial / accounting / consulting service.
 
@@ -279,7 +321,7 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
             "detailed_reasoning_report": detailed_reasoning_report
         }
     
-    def process_COATT_single_thread(self, document, service_data, model_name = "gemini-2.0-flash"):
+    def process_COATT_single_thread(self, document, document_path, service_data, model_name = "gemini-2.0-flash"):
         total_cost = 0
         start_time = time.time()
 
@@ -312,6 +354,20 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
             results["error"] = f"Client initialization failed: {str(e)}"
             results["status_code"] = 402
             return results
+        
+        # Step 3: Upload file
+        if document_path != None:
+            try:
+                data_source_pdf = client.files.upload(file = document_path)
+                data_source_pdf_obj = types.Part.from_uri(
+                    file_uri = data_source_pdf.uri,
+                    mime_type = "application/pdf",
+                )
+                # results["file_upload"] = True
+            except Exception as e:
+                results["error"] = f"File upload failed: {str(e)}"
+                results["status_code"] = 403
+                return results
 
         # Step 4: Initialize chat
         try:
@@ -335,10 +391,17 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
         # Step 5: Get Gemini response
         try:
             responses = []
-            analysis_recommendation_response = chat.send_message([
-                document,
-                self.DS_SYSTEM_CONTEMPLATION_PROMPT + service_data
-            ])
+            if document_path != None:
+                analysis_recommendation_response = chat.send_message([
+                    data_source_pdf_obj,
+                    document,
+                    self.DS_SYSTEM_CONTEMPLATION_PROMPT + service_data + "<jusridiction_country> United States of America </jusridiction_country>",
+                ])
+            else:
+                analysis_recommendation_response = chat.send_message([
+                    document,
+                    self.DS_SYSTEM_CONTEMPLATION_PROMPT + service_data + "<jusridiction_country> United States of America </jusridiction_country>",
+                ])
 
             total_cost += self.calculate_cost(
                 analysis_recommendation_response.usage_metadata.prompt_token_count,
@@ -366,6 +429,15 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
         except Exception as e:
             results["error"] = f"Response generation failed: {str(e)}"
             results["status_code"] = 405
+
+        # Step 6: Delete the file
+        if document_path != None:
+            try:
+                client.files.delete(name = data_source_pdf.name)
+                # results["file_cleanup"] = True
+            except Exception as e:
+                results["error"] = f"File cleanup failed: {str(e)}"
+                results["status_code"] = 406
             
         del client
 
@@ -399,7 +471,7 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
 
         return SERVICES_DESCRIPTION, services_data
 
-    def process_COATT_parallel(self, document, all_services_data, model_name="gemini-2.0-flash"):
+    def process_COATT_parallel(self, document, document_path, all_services_data, model_name="gemini-2.0-flash"):
         def process_with_retry(service_data):
             """
             Inner helper function that wraps process_COATT_single_thread with retry logic.
@@ -409,7 +481,7 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
 
             while attempts < 2:
                 try:
-                    response = self.process_COATT_single_thread(document, service_data, model_name)
+                    response = self.process_COATT_single_thread(document, document_path, service_data, model_name)
                     
                     # If no error in response, mark success and return
                     if response["error"] != None:
@@ -470,7 +542,7 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
 
         return results
 
-    def generate_grounding_report(self, company_details, model_name):
+    def generate_grounding_report(self, company_details, document_path, model_name):
         total_cost = 0
         start_time = time.time()
 
@@ -503,6 +575,20 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
             results["error"] = f"Client initialization failed: {str(e)}"
             results["status_code"] = 402
             return results
+        
+        # Step 3: Upload file
+        if document_path != None:
+            try:
+                data_source_pdf = client.files.upload(file = document_path)
+                data_source_pdf_obj = types.Part.from_uri(
+                    file_uri = data_source_pdf.uri,
+                    mime_type = "application/pdf",
+                )
+                # results["file_upload"] = True
+            except Exception as e:
+                results["error"] = f"File upload failed: {str(e)}"
+                results["status_code"] = 403
+                return results
 
         # Step 4: Initialize chat
         try:
@@ -526,9 +612,15 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
         # Step 5: Get Gemini response
         try:
             responses = []
-            report_response = chat.send_message([
-                self.analysis_grounding_prompt + json.dumps(company_details, indent = 4)
-            ])
+            if document_path != None:
+                report_response = chat.send_message([
+                    data_source_pdf_obj,
+                    self.analysis_grounding_with_document_prompt + json.dumps(company_details, indent = 4)
+                ])
+            else:
+                report_response = chat.send_message([
+                    self.analysis_grounding_prompt + json.dumps(company_details, indent = 4)
+                ])
 
             total_cost += self.calculate_cost(
                 report_response.usage_metadata.prompt_token_count,
@@ -556,6 +648,15 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
         except Exception as e:
             results["error"] = f"Response generation failed: {str(e)}"
             results["status_code"] = 405
+
+        # Step 6: Delete the file
+        if document_path != None:
+            try:
+                client.files.delete(name = data_source_pdf.name)
+                # results["file_cleanup"] = True
+            except Exception as e:
+                results["error"] = f"File cleanup failed: {str(e)}"
+                results["status_code"] = 406
 
         del client
 
@@ -726,15 +827,15 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
         # Return results, even if some steps failed
         return results
     
-    def process_template(self, company_details = None, message = None):
+    def process_template(self, company_details = None, document_path = None, message = None):
         total_cost = 0
 
         if company_details:
             self.first_query = None
             self.first_reply = None
 
-            # report_results = self.generate_grounding_report(company_details, "gemini-2.5-pro-preview-03-25")
-            report_results = self.generate_grounding_report(company_details, "gemini-2.0-flash")
+            report_results = self.generate_grounding_report(company_details, document_path, "gemini-2.5-pro-preview-03-25")
+            # report_results = self.generate_grounding_report(company_details, document_path, "gemini-2.0-flash")
 
             print("Generated analysis report!")
 
@@ -743,7 +844,7 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
 
             report_results_response = report_results["response"]
             services_data, services_data_json = self.get_services_offered_data("services_usa.json")
-            recommendations = self.process_COATT_parallel(report_results_response, services_data, "gemini-2.0-flash")
+            recommendations = self.process_COATT_parallel(report_results_response, document_path, services_data, "gemini-2.0-flash")
 
             total_cost += sum([dp["total_cost"] for dp in recommendations])
             print("Running Cost:- $", total_cost)
@@ -817,6 +918,6 @@ if __name__ == "__main__":
 
     deep_researcher = deepReseacher()
 
-    data = deep_researcher.process_template(company_details = company_details)
+    data = deep_researcher.process_template(company_details = company_details, document_path = "uploads/pidilite_usa.pdf")
 
     print("debug")

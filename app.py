@@ -1,6 +1,7 @@
 import streamlit as st
 import json
 from deep_research import deepReseacher
+import os
 
 # Sample template data - replace with actual data later
 TEMPLATES = [
@@ -106,6 +107,10 @@ def main():
     if "researcher" not in st.session_state:
         st.session_state.researcher = deepReseacher()
     
+    # Initialize document_path in session state
+    if "document_path" not in st.session_state:
+        st.session_state.document_path = None
+    
     # Use the researcher from session state
     researcher = st.session_state.researcher
     
@@ -125,6 +130,43 @@ def main():
         key="company_dropdown"
     )
     
+    # Add document upload feature in sidebar
+    st.sidebar.markdown("---")
+    st.sidebar.header("Document Upload (Optional)")
+    
+    # Initialize document_path at the start
+    document_path = st.session_state.document_path if st.session_state.document_path else None
+    
+    # Show current document and remove button if a document is already uploaded
+    if st.session_state.document_path and os.path.exists(st.session_state.document_path):
+        filename = os.path.basename(st.session_state.document_path)
+        st.sidebar.success(f"Current document: {filename}")
+        
+        if st.sidebar.button("Remove Document"):
+            # Remove file reference from session state
+            st.session_state.document_path = None
+            document_path = None
+            st.rerun()
+    else:
+        uploaded_file = st.sidebar.file_uploader("Upload a document", type=["pdf", "docx", "txt"])
+        
+        # Save uploaded file if it exists
+        if uploaded_file is not None:
+            # Create a directory for uploads if it doesn't exist
+            if not os.path.exists("uploads"):
+                os.makedirs("uploads")
+            
+            # Save the file
+            file_path = os.path.join("uploads", uploaded_file.name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            document_path = file_path
+            st.session_state.document_path = document_path
+            st.sidebar.success(f"File saved: {uploaded_file.name}")
+            st.rerun()
+
+    print(document_path)
+    
     # Find the selected template based on company name
     selected_template = next((template for template in TEMPLATES if template.get('company_name') == selected_company_name), None)
     
@@ -141,6 +183,7 @@ def main():
         st.session_state.selected_company = selected_template
         st.session_state.initial_research_done = False
         st.session_state.researcher = deepReseacher()
+        st.session_state.document_path = document_path  # Save document path in session state
         
         # Force UI refresh
         st.rerun()
@@ -179,7 +222,10 @@ def main():
         if not st.session_state.initial_research_done:
             with st.spinner("Generating company research report..."):
                 # Process the template and add initial message
-                report_results_response, service_responses, gotomeet_document = researcher.process_template(company_details=st.session_state.selected_company)
+                report_results_response, service_responses, gotomeet_document = researcher.process_template(
+                    company_details=st.session_state.selected_company,
+                    document_path=st.session_state.document_path
+                )
                 
                 # Create a formatted message for chat history
                 company_name = st.session_state.selected_company.get('company_name', 'Unknown')
