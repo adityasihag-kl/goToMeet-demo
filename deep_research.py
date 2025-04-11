@@ -839,6 +839,8 @@ ONLY AND ONLY AFTER FULL DOCUMENT IS GENERATED, APPEND THE TOKEN <CHARLIEWAFFLES
             report_results = self.generate_grounding_report(company_details, document_path, "gemini-2.5-pro-preview-03-25")
             # report_results = self.generate_grounding_report(company_details, document_path, "gemini-2.0-flash")
 
+            print(report_results["error"])
+            
             print("Generated analysis report!")
 
             total_cost += report_results["total_cost"]
